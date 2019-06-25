@@ -1,25 +1,25 @@
 'use strict';
 
 const { Contract, Context } = require('fabric-contract-api');
+const ClientIdentity = require('fabric-shim').ClientIdentity;
 
 const Asset = require('./asset');
 const AssetList = require('./assetlist.js');
 
 /**
- * A custom context provides easy access to list of all commercial papers
+ * A custom context provides easy access to list of all assets
  */
 class AssetTrackingContext extends Context {
 
     constructor() {
         super();
-        // All papers are held in a list of papers
         this.assetList = new AssetList(this);
     }
 
 }
 
 /**
- * Define commercial paper smart contract by extending Fabric Contract class
+ * Define asset tracking smart contract by extending Fabric Contract class
  *
  */
 class AssetTrackingContract extends Contract {
@@ -30,7 +30,7 @@ class AssetTrackingContract extends Contract {
     }
 
     /**
-     * Define a custom context for commercial paper
+     * Define a custom context for assets
     */
     createContext() {
         return new AssetTrackingContext();
@@ -47,32 +47,38 @@ class AssetTrackingContract extends Contract {
     }
 
     /**
-     * Issue commercial paper
+     * create new asset
      *
      * @param {Context} ctx the transaction context
     */
-    async issue(ctx) {
+    async createAsset(ctx, assetStr) {
+        const asset = JSON.parse(assetStr);
+        if(!Asset.isValidAsset(asset)) {
+            throw new Error('Please give a valid asset.', asset);
+        }
 
-        // create an instance of the paper
-        let asset = Asset.createInstance("1", "My desc", "tipoasset", "nearshore", [], []);
+        let cid = new ClientIdentity(ctx.stub);
+        
+        // create an instance of the asset
+        let assetObj = Asset.createInstance(asset.serialNo,
+            asset.description,
+            asset.assetType,
+            cid.getID(),
+            asset.properties
+            );
 
-        // Newly issued paper is owned by the issuer
-        asset.setOwner("nearshore");
+        await ctx.assetList.createAsset(assetObj);
 
-        // Add the paper to the list of all similar commercial papers in the ledger world state
-        await ctx.assetList.createAsset(asset);
-
-        // Must return a serialized paper to caller of smart contract
-        return asset.toBuffer();
+        return assetObj.toBuffer();
     }
 
     /**
-     * Buy commercial paper
+     * 
      *
      * @param {Context} ctx the transaction context
      */
-    async getAssetTransac(ctx) {
-        let asset = await ctx.assetList.getAsset('"1"');
+    async getAssetTransac(ctx, assetId) {
+        let asset = await ctx.assetList.getAsset(`"${assetId}"`);
         return asset.toBuffer();
     }
 }

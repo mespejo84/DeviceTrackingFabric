@@ -29,7 +29,6 @@ class Asset extends State {
     }
 
     toBuffer() {
-        console.log("*********************ppppppppppppppppppppp", this)
         return Buffer.from(JSON.stringify(this));
     }
 
@@ -40,13 +39,54 @@ class Asset extends State {
         return State.deserializeClass(data, Asset);
     }
 
-    static createInstance(serialNo, description, deviceType, currentOwner, properties = [], logEntries = []) {
-        return new Asset({ serialNo, description, deviceType, properties, currentOwner, logEntries });
+    static createInstance(serialNo, description, assetType, currentOwner, properties = [], logEntries = []) {
+        return new Asset({ serialNo, description, assetType, properties, currentOwner, logEntries });
     }
 
     static getClass() {
         return 'org.nearshore.asset';
     }
+
+    static isValidAsset(asset) {
+        console.log("************--------------------***************------------- validating asset", asset);
+        if(!asset) {
+            console.log("************--------------------***************------------- no asset");
+            return false;
+        }
+        if(!asset.serialNo) {
+            console.log("************--------------------***************------------- no serial number");
+            return false;
+        }
+        if(!asset.description) {
+            console.log("************--------------------***************------------- no description");
+            return false;
+        }
+        if(!asset.assetType || !asset.assetType.name || !asset.assetType.value) {
+            console.log("************--------------------***************------------- no asset type");
+            return false;
+        }
+        if(asset.properties) {
+
+            if(!Array.isArray(asset.properties)){
+                console.log("************--------------------***************------------- no asset property array");
+                return false;
+            }
+            let valid = true;
+            asset.properties.some(i => {
+                if(!i.name || !i.value) {
+                    valid = false;
+                    return true;
+                }
+            });
+            if(!valid) {
+                console.log("************--------------------***************------------- no valid properties");
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
+  
 
 module.exports = Asset;
