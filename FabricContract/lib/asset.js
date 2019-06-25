@@ -29,6 +29,7 @@ class Asset extends State {
     }
 
     toBuffer() {
+        console.log("*********************ppppppppppppppppppppp", this)
         return Buffer.from(JSON.stringify(this));
     }
 

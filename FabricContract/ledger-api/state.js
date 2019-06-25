@@ -59,6 +59,7 @@ class State {
      * @return {json} json with the data to store
      */
     static deserialize(data, supportedClasses) {
+        console.log("######################################## deserialize method", data.toString());
         let json = JSON.parse(data.toString());
         let objClass = supportedClasses[json.class];
         if (!objClass) {
