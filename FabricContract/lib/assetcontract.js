@@ -1,79 +1,103 @@
 'use strict';
 
 const { Contract, Context } = require('fabric-contract-api');
+const ClientIdentity = require('fabric-shim').ClientIdentity;
+const Response = require('fabric-shim').Response;
 
-const Asset = require('./asset');
-const AssetList = require('./assetlist.js');
-
+const Asset = require('./assets/asset.js');
+const AssetList = require('./assets/assetlist.js');
+const ParticipantList = require('./participants/participantlist.js');
+const { Participant, userTypes } = require('./participants/participant.js');
 /**
- * A custom context provides easy access to list of all commercial papers
+ * A custom context provides easy access to list of all assets
  */
 class AssetTrackingContext extends Context {
 
     constructor() {
         super();
-        // All papers are held in a list of papers
         this.assetList = new AssetList(this);
+        this.participantList = new ParticipantList(this);
     }
 
 }
 
-/**
- * Define commercial paper smart contract by extending Fabric Contract class
- *
- */
 class AssetTrackingContract extends Contract {
 
     constructor() {
-        // Unique name when multiple contracts per chaincode file
         super('org.nearshore.assettracking');
     }
 
-    /**
-     * Define a custom context for commercial paper
-    */
     createContext() {
         return new AssetTrackingContext();
     }
 
-    /**
-     * Instantiate to perform any setup of the ledger that might be required.
-     * @param {Context} ctx the transaction context
-     */
     async instantiate(ctx) {
-        // No implementation required with this example
-        // It could be where data migration is performed, if necessary
         console.log('Instantiate the contract');
     }
 
-    /**
-     * Issue commercial paper
-     *
-     * @param {Context} ctx the transaction context
-    */
-    async issue(ctx) {
+    async createAsset(ctx, assetStr) {
+        const asset = JSON.parse(assetStr);
+        if(!Asset.isValidAsset(asset)) {
+            throw new Error('Please give a valid asset.');
+        }
 
-        // create an instance of the paper
-        let asset = Asset.createInstance("1", "My desc", "tipoasset", "nearshore", [], []);
+        const cid = new ClientIdentity(ctx.stub);
+        const x509Val = cid.getX509Certificate();
+        let currentParticipant = "";
 
-        // Newly issued paper is owned by the issuer
-        asset.setOwner("nearshore");
+        if(x509Val && x509Val.subject && x509Val.subject.commonName) {
+            currentParticipant = x509Val.subject.commonName;
+        } else {
+            throw new Error("Couldn't get user info");
+        }
+        const participant = await ctx.participantList.getParticipant(`"${currentParticipant}"`);
+        if(!participant || participant.userType != userTypes.ADMIN) {
+            //throw new Error("The user does not have enough permitions");
+            let resp = new Response()
+            resp.status = 403;
+            resp.message = "The user does not have enough permitions";
+            return resp;
+        }
+        
+        // create an instance of the asset
+        let assetObj = Asset.createInstance(asset.serialNo,
+            asset.description,
+            asset.assetType,
+            currentParticipant,
+            asset.properties
+            );
 
-        // Add the paper to the list of all similar commercial papers in the ledger world state
-        await ctx.assetList.createAsset(asset);
+        await ctx.assetList.createAsset(assetObj);
 
-        // Must return a serialized paper to caller of smart contract
+        return assetObj.toBuffer();
+    }
+
+    async createParticipant(ctx, participantStr) {
+        const participant = JSON.parse(participantStr);
+        const cid = new ClientIdentity(ctx.stub);
+        const x509Val = cid.getX509Certificate();
+        let commonName = "";
+        if(x509Val && x509Val.subject && x509Val.subject.commonName) {
+            commonName = x509Val.subject.commonName;
+        }
+        
+        const { firstName, lastName, email, userType: userTypeStr, organization = null, reportsTo = null } = participant;
+        const userType = Participant.getUserTypeAsEnum(userTypeStr);
+        const participantObj = Participant.createInstance(firstName, lastName, email, userType, organization, reportsTo);
+
+        await ctx.participantList.createParticipant(participantObj);
+
+        return participantObj.toBuffer();
+    }
+
+    async getAsset(ctx, assetId) {
+        let asset = await ctx.assetList.getAsset(`"${assetId}"`);
         return asset.toBuffer();
     }
 
-    /**
-     * Buy commercial paper
-     *
-     * @param {Context} ctx the transaction context
-     */
-    async getAssetTransac(ctx) {
-        let asset = await ctx.assetList.getAsset('"1"');
-        return asset.toBuffer();
+    async getParticipant(ctx, participantId) {
+        let participant = await ctx.participantList.getParticipant(`"${participantId}"`);
+        return participant.toBuffer();
     }
 }
 
