@@ -1,6 +1,6 @@
 {
   "name": "devicetrackingcontract",
-  "version": "0.0.1",
+  "version": "0.0.11",
   "description": "NST device tracking using Fabric chaincode",
   "main": "index.js",
   "engines": {

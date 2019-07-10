@@ -1,6 +1,6 @@
 'use strict';
 
-const State = require('../ledger-api/state');
+const State = require('../../ledger-api/state');
 
 class Asset extends State {
 
@@ -48,27 +48,20 @@ class Asset extends State {
     }
 
     static isValidAsset(asset) {
-        console.log("************--------------------***************------------- validating asset", asset);
         if(!asset) {
-            console.log("************--------------------***************------------- no asset");
             return false;
         }
         if(!asset.serialNo) {
-            console.log("************--------------------***************------------- no serial number");
             return false;
         }
         if(!asset.description) {
-            console.log("************--------------------***************------------- no description");
             return false;
         }
         if(!asset.assetType || !asset.assetType.name || !asset.assetType.value) {
-            console.log("************--------------------***************------------- no asset type");
             return false;
         }
         if(asset.properties) {
-
             if(!Array.isArray(asset.properties)){
-                console.log("************--------------------***************------------- no asset property array");
                 return false;
             }
             let valid = true;
@@ -79,7 +72,6 @@ class Asset extends State {
                 }
             });
             if(!valid) {
-                console.log("************--------------------***************------------- no valid properties");
                 return false;
             }
         }
